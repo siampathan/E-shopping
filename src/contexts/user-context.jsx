@@ -1,29 +1,56 @@
-import { createContext, useState, useEffect } from "react";
+import { createContext, useEffect, useReducer } from "react";
+import { cartAction } from "../utils/reducer/reducer";
 import {
-    onAuthStateChangedListener,
-    createUserDocFromAuth,
+  onAuthStateChangedListener,
+  createUserDocFromAuth,
 } from "../utils/firebase/firebase";
 
 export const UserContext = createContext({
-    currentUser: null,
-    setCurrentUser: () => null,
+  currentUser: null,
+  setCurrentUser: () => null,
 });
 
+export const USER_ACTION_TYPES = {
+  SET_CURRENT_USER: "SET_CURRENT_USER",
+};
+
+const userReducer = (state, action) => {
+  const { type, payload } = action;
+
+  switch (type) {
+    case USER_ACTION_TYPES.SET_CURRENT_USER:
+      return {
+        ...state,
+        currentUser: payload,
+      };
+
+    default:
+      throw Error(`Unhandled type ${type} in reducer`);
+  }
+};
+
+const INIIAL_STATE = {
+  currentUser: null,
+};
+
 export const UserProvider = ({ children }) => {
-    const [currentUser, setCurrentUser] = useState(null);
-    const value = { currentUser, setCurrentUser };
+  const [{ currentUser }, dispatch] = useReducer(userReducer, INIIAL_STATE);
 
-    useEffect(() => {
-        const unsubcribe = onAuthStateChangedListener((user) => {
-            if (user) {
-                createUserDocFromAuth(user);
-            }
-            setCurrentUser(user);
-        });
-        return unsubcribe;
-    }, []);
+  const setCurrentUser = (user) => {
+    dispatch(cartAction(USER_ACTION_TYPES.SET_CURRENT_USER, user));
+  };
 
-    return (
-        <UserContext.Provider value={value}>{children}</UserContext.Provider>
-    );
+  const value = { currentUser, setCurrentUser };
+
+  useEffect(() => {
+    const unsubcribe = onAuthStateChangedListener((user) => {
+      if (user) {
+        createUserDocFromAuth(user);
+      }
+      setCurrentUser(user);
+    });
+    return unsubcribe;
+  }, []);
+
+  return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 };
